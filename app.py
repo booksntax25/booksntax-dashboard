@@ -12,9 +12,10 @@ import streamlit as st
 import supa
 
 # --------------------------------------------------- palette (from logo) ----
-NAVY = "#0C2340"          # brand navy (structure / text)
-BAR = "#1F4E79"           # navy-blue for chart bars
-GREEN = "#1E8043"         # brand green (accents / highlights)
+NAVY = "#0C2340"
+BAR = "#1F4E79"
+GREEN = "#1E8043"
+BLUE = "#3D7AB5"
 INK = "#0C2340"
 MUTED = "#5B6B7B"
 GRID = "#E6EBF1"
@@ -49,17 +50,23 @@ st.markdown(
       .block-container {{ padding-top: 1.2rem; max-width: 1320px; }}
 
       .bnt-header {{
-        background: #fff; padding: 18px 26px; border-radius: 18px; margin-bottom: 18px;
+        background: #fff; padding: 18px 28px; border-radius: 18px; margin-bottom: 18px;
         border: 1px solid {GRID}; border-bottom: 3px solid {GREEN};
         box-shadow: 0 8px 26px -18px rgba(12,35,64,.45);
         display: flex; align-items: center;
       }}
-      .bnt-header img {{ height: 60px; margin-right: 20px; }}
-      .bnt-header h1 {{ margin: 0; font-size: 1.55rem; font-weight: 800; color: {NAVY}; letter-spacing:-.3px;}}
-      .bnt-header p  {{ margin: 4px 0 0; color: {MUTED}; font-size: .9rem; }}
+      .bnt-header img {{ height: 74px; margin-right: 24px; }}
+      .bnt-header h1 {{ margin: 0; font-size: 1.95rem; font-weight: 800; color: {NAVY}; letter-spacing:-.3px;}}
+      .bnt-header p  {{ margin: 5px 0 0; color: {MUTED}; font-size: .96rem; }}
+
+      /* every section is a white card with a green accent + shadow (header concept) */
+      div[data-testid="stVerticalBlockBorderWrapper"] {{
+        background: #fff; border: 1px solid {GRID} !important; border-bottom: 3px solid {GREEN} !important;
+        border-radius: 16px; box-shadow: 0 8px 26px -18px rgba(12,35,64,.45);
+      }}
 
       div[data-testid="stMetric"] {{
-        background: #fff; border: 1px solid {GRID}; border-radius: 14px;
+        background: #fff; border: 1px solid {GRID}; border-bottom: 3px solid {GREEN}; border-radius: 14px;
         padding: 14px 16px; box-shadow: 0 4px 14px -12px rgba(12,35,64,.35);
       }}
       div[data-testid="stMetricLabel"] p {{
@@ -75,23 +82,21 @@ st.markdown(
       .bnt-spot {{ background: #F4FAF6; border: 1px solid #CDE8D6; border-left: 5px solid {GREEN};
         border-radius: 12px; padding: 16px 20px; }}
 
-      /* bordered section cards */
-      div[data-testid="stVerticalBlockBorderWrapper"] {{
-        background: #fff; border-radius: 16px; box-shadow: 0 6px 22px -18px rgba(12,35,64,.4);
-      }}
-
-      .cal {{ width: 100%; border-collapse: separate; border-spacing: 7px; }}
-      .cal th {{ color: {MUTED}; font-size: .7rem; font-weight: 700; text-transform: uppercase; }}
-      .cal td {{ height: 62px; width: 14.2%; vertical-align: top; border-radius: 11px;
-        background: #FAFBFD; border: 1px solid {GRID}; padding: 5px 8px; }}
+      /* calendar */
+      .calwrap {{ max-width: 760px; margin: 4px auto 0; }}
+      .cal {{ width: 100%; border-collapse: separate; border-spacing: 6px; }}
+      .cal th {{ color: {MUTED}; font-size: .68rem; font-weight: 700; text-transform: uppercase; padding-bottom:2px;}}
+      .cal td {{ height: 52px; border-radius: 10px; text-align: center; vertical-align: middle;
+        background: #FFFFFF; border: 1px solid {GRID}; padding: 4px; }}
+      .cal td.alt {{ background: #EEF2F7; }}
       .cal td.empty {{ background: transparent; border: none; }}
-      .cal td.yt   {{ background: #FFF1F3; border: 1px solid #FB7185; }}
-      .cal td.ig   {{ background: #F1ECFE; border: 1px solid #A78BFA; }}
-      .cal td.both {{ background: linear-gradient(135deg,#FFF1F3,#F1ECFE); border: 1px solid #C084FC; }}
+      .cal td.yt   {{ background: #FDEDEF; border: 1px solid #E2557A; }}
+      .cal td.ig   {{ background: #EEE8FD; border: 1px solid #9B7BE6; }}
+      .cal td.both {{ background: linear-gradient(135deg,#FDEDEF,#EEE8FD); border: 1px solid #B57BD6; }}
       .cal td.today {{ box-shadow: 0 0 0 2px {GREEN}; }}
-      .cal .daynum {{ font-size: .76rem; color: {MUTED}; font-weight: 700; }}
-      .cal .icons {{ font-size: 1.05rem; margin-top: 5px; }}
-      .leg {{ color:{MUTED}; font-size:.8rem; margin-top:8px; }}
+      .cal .daynum {{ font-size: .95rem; color: {NAVY}; font-weight: 700; }}
+      .cal .icons {{ font-size: 1rem; margin-top: 2px; }}
+      .leg {{ color:{MUTED}; font-size:.8rem; margin-top:10px; text-align:center; }}
     </style>
     """,
     unsafe_allow_html=True,
@@ -100,7 +105,7 @@ st.markdown(
 logo_tag = f'<img src="data:image/png;base64,{LOGO}">' if LOGO else "📊 "
 st.markdown(
     f"""<div class="bnt-header">{logo_tag}
-      <div><h1>Social Dashboard</h1>
+      <div><h1>BooksNTax — Social Dashboard</h1>
       <p>Short-form video performance · Views, Engagement, Retention & Audience</p></div>
     </div>""",
     unsafe_allow_html=True,
@@ -113,7 +118,7 @@ def section(title, caption=None):
         st.markdown(f'<div class="bnt-cap">{caption}</div>', unsafe_allow_html=True)
 
 
-def style_fig(fig, height=340):
+def style_fig(fig, height=320):
     fig.update_layout(height=height, font=dict(family="Inter", color=INK, size=12.5),
                       margin=dict(l=10, r=10, t=8, b=10), plot_bgcolor="white",
                       paper_bgcolor="white", title="")
@@ -122,7 +127,7 @@ def style_fig(fig, height=340):
     return fig
 
 
-def show(fig, h=340):
+def show(fig, h=320):
     st.plotly_chart(style_fig(fig, h), use_container_width=True, config={"displayModeBar": False})
 
 
@@ -296,21 +301,26 @@ with st.container(border=True):
         body = ""
         for week in cal.monthdayscalendar(pick.year, pick.month):
             body += "<tr>"
-            for day in week:
+            for col, day in enumerate(week):
                 if day == 0:
                     body += '<td class="empty"></td>'
                     continue
+                cls = []
+                if col in (0, 6):
+                    cls.append("alt")
                 plats = posts_by_day.get(day)
-                cls = ("both" if plats and len(plats) > 1
-                       else ("yt" if plats and "youtube" in plats else ("ig" if plats else "")))
+                if plats:
+                    cls.append("both" if len(plats) > 1 else ("yt" if "youtube" in plats else "ig"))
                 if now.year == pick.year and now.month == pick.month and now.day == day:
-                    cls += " today"
+                    cls.append("today")
                 icons = "".join(PLATFORM_ICON.get(p, "•") for p in sorted(plats)) if plats else ""
-                body += f'<td class="{cls}"><div class="daynum">{day}</div><div class="icons">{icons}</div></td>'
+                body += (f'<td class="{" ".join(cls)}"><div class="daynum">{day}</div>'
+                         f'<div class="icons">{icons}</div></td>')
             body += "</tr>"
-        st.markdown(f'<table class="cal"><tr>{head}</tr>{body}</table>'
-                    f'<div class="leg">▶️ YouTube &nbsp; 📸 Instagram &nbsp; '
-                    f'<span style="color:{GREEN}">▮</span> today</div>', unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="calwrap"><table class="cal"><tr>{head}</tr>{body}</table>'
+            f'<div class="leg">▶️ YouTube &nbsp; 📸 Instagram &nbsp; '
+            f'<span style="color:{GREEN}">▮</span> today</div></div>', unsafe_allow_html=True)
 
 # --------------------------------------------------------------- retention ---
 ret = df.dropna(subset=["avg_view_percentage"]) if "avg_view_percentage" in df else df.iloc[0:0]
@@ -351,7 +361,7 @@ with st.container(border=True):
             with d3:
                 st.markdown("**Top countries**")
                 fig = px.bar(ctry, x="percentage", y="bucket", orientation="h",
-                             color_discrete_sequence=[GREEN], labels={"bucket": "", "percentage": "% of views"})
+                             color_discrete_sequence=[BLUE], labels={"bucket": "", "percentage": "% of views"})
                 fig.update_layout(yaxis={"categoryorder": "total ascending"}, showlegend=False)
                 show(fig, 290)
     else:
@@ -379,7 +389,7 @@ with st.container(border=True):
         tbl[disp], use_container_width=True, hide_index=True,
         on_select="rerun", selection_mode="single-row", key="vtable",
         column_config={
-            "clean_title": st.column_config.TextColumn("title"),
+            "clean_title": st.column_config.TextColumn("video"),
             "url": st.column_config.LinkColumn("link", display_text="open"),
             "avg_view_percentage": st.column_config.NumberColumn("% watched", format="%.0f"),
         })
