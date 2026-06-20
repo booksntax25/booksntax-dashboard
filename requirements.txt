@@ -4,3 +4,4 @@ plotly>=5.20
 google-api-python-client>=2.130
 google-auth>=2.30
 supabase>=2.4
+tzdata>=2024.1
