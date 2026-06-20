@@ -1,25 +1,22 @@
-"""BooksNTax — Social Dashboard (YouTube stage).
-
-Run locally:   streamlit run app.py
-Deployed:      Streamlit Community Cloud reads this file automatically.
-"""
+"""BooksNTax — Social Dashboard (YouTube stage)."""
 import calendar as calmod
+import re
 
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import streamlit as st
 
 import supa
 
 # ---------------------------------------------------------------- palette ----
-INK = "#0B2A22"
-PRIMARY = "#0E7C66"
-PRIMARY_DARK = "#0A574A"
-GOLD = "#D4A53A"
-MUTED = "#6B7E78"
-GRID = "#E7EEEB"
-SEQ = [PRIMARY, GOLD, "#3AA188", "#86C6B6", "#B6891E", "#0A574A"]
-
+PRIMARY = "#6C5CE7"        # violet / indigo
+PRIMARY_DARK = "#4A36C9"
+ACCENT = "#06B6D4"         # cyan, used sparingly
+INK = "#1E1B3A"
+MUTED = "#6E6B8A"
+GRID = "#ECECF6"
+SEQ = ["#6C5CE7", "#06B6D4", "#9B8CFF", "#F472B6", "#22C55E", "#4A36C9"]
 PLATFORM_ICON = {"youtube": "▶️", "instagram": "📸"}
 
 st.set_page_config(page_title="BooksNTax · Social Dashboard", page_icon="📊", layout="wide")
@@ -30,52 +27,48 @@ st.markdown(
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
       html, body, [class*="css"], .stApp {{ font-family: 'Inter', sans-serif; }}
-      .block-container {{ padding-top: 1.4rem; max-width: 1300px; }}
+      .block-container {{ padding-top: 1.3rem; max-width: 1320px; }}
+      .stApp {{ background: #F6F6FB; }}
 
       .bnt-header {{
-        background: linear-gradient(120deg, {PRIMARY} 0%, {PRIMARY_DARK} 100%);
-        padding: 26px 30px; border-radius: 18px; color: #fff; margin-bottom: 22px;
-        box-shadow: 0 10px 30px -12px rgba(11,42,34,.45);
-        border-bottom: 3px solid {GOLD};
+        background: linear-gradient(120deg, #7B6BF0 0%, {PRIMARY_DARK} 100%);
+        padding: 26px 30px; border-radius: 20px; color: #fff; margin-bottom: 22px;
+        box-shadow: 0 16px 40px -16px rgba(76,54,201,.55);
+        border-bottom: 3px solid {ACCENT};
       }}
-      .bnt-header h1 {{ margin: 0; font-size: 1.75rem; font-weight: 800; letter-spacing: -.2px; }}
-      .bnt-header p  {{ margin: 6px 0 0; opacity: .9; font-size: .96rem; font-weight: 400; }}
+      .bnt-header h1 {{ margin: 0; font-size: 1.8rem; font-weight: 800; letter-spacing: -.3px; }}
+      .bnt-header p  {{ margin: 6px 0 0; opacity: .92; font-size: .96rem; }}
 
-      /* KPI cards */
       div[data-testid="stMetric"] {{
         background: #fff; border: 1px solid {GRID}; border-radius: 16px;
-        padding: 16px 18px; box-shadow: 0 4px 16px -10px rgba(11,42,34,.25);
+        padding: 16px 18px; box-shadow: 0 6px 20px -14px rgba(30,27,58,.4);
       }}
       div[data-testid="stMetricLabel"] p {{
-        font-size: .72rem !important; text-transform: uppercase;
-        letter-spacing: .6px; color: {MUTED} !important; font-weight: 600;
+        font-size: .72rem !important; text-transform: uppercase; letter-spacing: .6px;
+        color: {MUTED} !important; font-weight: 600;
       }}
       div[data-testid="stMetricValue"] {{ color: {INK}; font-weight: 700; }}
 
-      /* section headings */
-      .bnt-sec {{
-        font-size: 1.12rem; font-weight: 700; color: {INK};
-        margin: 26px 0 10px; padding-left: 12px; border-left: 4px solid {GOLD};
-      }}
+      .bnt-sec {{ font-size: 1.14rem; font-weight: 700; color: {INK};
+        margin: 26px 0 10px; padding-left: 12px; border-left: 4px solid {PRIMARY}; }}
       .bnt-cap {{ color: {MUTED}; font-size: .84rem; margin-top: -4px; }}
 
-      /* spotlight */
-      .bnt-spot {{
-        background: #fff; border: 1px solid {GRID}; border-left: 5px solid {PRIMARY};
-        border-radius: 14px; padding: 16px 20px; box-shadow: 0 4px 16px -10px rgba(11,42,34,.25);
-      }}
+      .bnt-spot {{ background: linear-gradient(120deg,#fff,#F5F3FF);
+        border: 1px solid #E4DEFB; border-left: 5px solid {PRIMARY};
+        border-radius: 16px; padding: 18px 22px; box-shadow: 0 8px 26px -16px rgba(76,54,201,.5); }}
 
-      /* calendar */
-      .cal {{ width: 100%; border-collapse: separate; border-spacing: 6px; }}
-      .cal th {{ color: {MUTED}; font-size: .72rem; font-weight: 600; text-transform: uppercase; padding-bottom: 4px; }}
-      .cal td {{
-        height: 64px; width: 14.2%; vertical-align: top; border-radius: 10px;
-        background: #fff; border: 1px solid {GRID}; padding: 6px 8px;
-      }}
+      .cal {{ width: 100%; border-collapse: separate; border-spacing: 7px; }}
+      .cal th {{ color: {MUTED}; font-size: .72rem; font-weight: 700; text-transform: uppercase; }}
+      .cal td {{ height: 66px; width: 14.2%; vertical-align: top; border-radius: 12px;
+        background: #fff; border: 1px solid {GRID}; padding: 6px 9px; transition: transform .1s; }}
       .cal td.empty {{ background: transparent; border: none; }}
-      .cal td.has {{ background: #F0F8F5; border: 1px solid {PRIMARY}; }}
-      .cal .daynum {{ font-size: .78rem; color: {MUTED}; font-weight: 600; }}
-      .cal .icons {{ font-size: 1.05rem; margin-top: 6px; }}
+      .cal td.yt   {{ background: #FFF1F3; border: 1px solid #FB7185; }}
+      .cal td.ig   {{ background: #F4F1FE; border: 1px solid #A78BFA; }}
+      .cal td.both {{ background: linear-gradient(135deg,#FFF1F3,#F1ECFE); border: 1px solid #C084FC; }}
+      .cal td.today {{ box-shadow: 0 0 0 2px {ACCENT}; }}
+      .cal .daynum {{ font-size: .78rem; color: {MUTED}; font-weight: 700; }}
+      .cal .icons {{ font-size: 1.1rem; margin-top: 6px; }}
+      .leg {{ color:{MUTED}; font-size:.82rem; margin-top:8px; }}
     </style>
     <div class="bnt-header">
       <h1>📊 BooksNTax — Social Dashboard</h1>
@@ -93,14 +86,23 @@ def section(title, caption=None):
 
 
 def style_fig(fig, height=380):
-    fig.update_layout(
-        height=height, font=dict(family="Inter", color=INK, size=13),
-        margin=dict(l=10, r=10, t=42, b=10), plot_bgcolor="white", paper_bgcolor="white",
-        title_font=dict(size=15, color=INK),
-    )
+    fig.update_layout(height=height, font=dict(family="Inter", color=INK, size=13),
+                      margin=dict(l=10, r=10, t=20, b=10), plot_bgcolor="white",
+                      paper_bgcolor="white", title=None, showlegend=fig.layout.showlegend)
     fig.update_xaxes(gridcolor=GRID, zeroline=False)
     fig.update_yaxes(gridcolor=GRID, zeroline=False)
     return fig
+
+
+def show(fig, h=380):
+    st.plotly_chart(style_fig(fig, h), use_container_width=True, config={"displayModeBar": False})
+
+
+def clean_title(t):
+    if not isinstance(t, str) or not t.strip():
+        return "(untitled)"
+    t = re.sub(r"\s+", " ", t.replace("#", " ")).strip()
+    return t or "(untitled)"
 
 
 # ------------------------------------------------------------------ sidebar ---
@@ -112,8 +114,7 @@ with st.sidebar:
                 from youtube_client import fetch_youtube
                 yt = st.secrets["youtube"]
                 channel, videos, demo = fetch_youtube(
-                    yt["client_id"], yt["client_secret"], yt["refresh_token"]
-                )
+                    yt["client_id"], yt["client_secret"], yt["refresh_token"])
                 supa.save_videos(videos)
                 supa.save_demographics("youtube", demo)
             st.success(f"{channel}: {len(videos)} videos updated.")
@@ -128,7 +129,6 @@ try:
 except Exception as e:
     st.error(f"Couldn't reach the database. Check your Supabase secrets.\n\n{e}")
     st.stop()
-
 if df.empty:
     st.info("No data yet — click **🔄 Fetch latest data** in the sidebar.")
     st.stop()
@@ -138,87 +138,94 @@ for c in ["views", "likes", "comments", "watch_time_minutes",
           "avg_view_duration_seconds", "avg_view_percentage", "duration_seconds"]:
     if c in df.columns:
         df[c] = pd.to_numeric(df[c], errors="coerce")
-try:  # show post dates in the creator's local time, not UTC
+try:
     df["published_at"] = df["published_at"].dt.tz_convert("Australia/Melbourne")
 except Exception:
     pass
-df["short_title"] = df["title"].fillna("(untitled)").str.slice(0, 46)
+df["clean_title"] = df["title"].map(clean_title)
+df["short_title"] = df["clean_title"].apply(lambda s: (s[:38] + "…") if len(s) > 38 else s)
 
-# ----- sidebar filters (built after data so options reflect what's loaded) ---
+# apply a pending focus (set by a table click on the previous run) BEFORE widgets
+if "_pending_focus" in st.session_state:
+    st.session_state["focus_id"] = st.session_state.pop("_pending_focus")
+
 with st.sidebar:
     platforms = sorted(df["platform"].dropna().unique())
     if len(platforms) > 1:
         chosen = st.multiselect("Platform", platforms, default=platforms,
                                 format_func=lambda p: f"{PLATFORM_ICON.get(p,'')} {p.title()}")
         df = df[df["platform"].isin(chosen)]
-    only_shorts = st.toggle("Shorts only (≤ 3 min)", value=False)
-    if only_shorts and "is_short" in df.columns:
+    if st.toggle("Shorts only (≤ 3 min)", value=False):
         df = df[df["duration_seconds"].fillna(9999) <= 180]
 
+    ids = list(df["platform_video_id"])
+    titles = dict(zip(df["platform_video_id"], df["short_title"]))
+    if st.session_state.get("focus_id") not in ids:
+        st.session_state["focus_id"] = None
     st.divider()
-    title_by_id = {r.platform_video_id: r.short_title for r in df.itertuples()}
-    spotlight = st.selectbox(
-        "🔍 Spotlight a video",
-        options=["__all__"] + list(title_by_id.keys()),
-        format_func=lambda k: "All videos" if k == "__all__" else title_by_id.get(k, k),
-    )
+    st.selectbox("🔍 Focus on a video", [None] + ids, key="focus_id",
+                 format_func=lambda v: "All videos" if v is None else titles.get(v, v))
 
 if df.empty:
     st.warning("No videos match the current filters.")
     st.stop()
 
-# ------------------------------------------------------------- spotlight ---
-if spotlight != "__all__":
-    row = df[df["platform_video_id"] == spotlight]
-    if not row.empty:
-        r = row.iloc[0]
-        pct = r["avg_view_percentage"]
-        pct_txt = f"{pct:.0f}%" if pd.notna(pct) else "—"
-        section("🔍 Video spotlight")
-        st.markdown(
-            f"""<div class="bnt-spot">
-            <div style="font-weight:700;color:{INK};font-size:1.02rem;margin-bottom:8px">
-              {PLATFORM_ICON.get(r['platform'],'')} {(r['title'] or '')[:90]}</div>
-            <div style="color:{MUTED};font-size:.86rem">
-              Views <b style="color:{INK}">{int(r['views'] or 0):,}</b> &nbsp;·&nbsp;
-              Likes <b style="color:{INK}">{int(r['likes'] or 0):,}</b> &nbsp;·&nbsp;
-              Comments <b style="color:{INK}">{int(r['comments'] or 0):,}</b> &nbsp;·&nbsp;
-              % watched <b style="color:{INK}">{pct_txt}</b></div>
-            <div style="margin-top:8px"><a href="{r['url']}" target="_blank">Open video ↗</a></div>
-            </div>""",
-            unsafe_allow_html=True,
-        )
-        st.caption("Per-video audience (age/gender/location) isn't shown — YouTube only "
-                   "releases demographics for a single video once it has enough viewers.")
+focus = st.session_state.get("focus_id")
+view = df[df["platform_video_id"] == focus] if focus else df
+
+# ------------------------------------------------------------- focus banner ---
+if focus and not view.empty:
+    r = view.iloc[0]
+    pct = r["avg_view_percentage"]
+    section("Viewing one video")
+    st.markdown(
+        f"""<div class="bnt-spot">
+        <div style="font-weight:700;color:{INK};font-size:1.05rem;margin-bottom:6px">
+          {PLATFORM_ICON.get(r['platform'],'')} {r['clean_title'][:90]}</div>
+        <div style="color:{MUTED};font-size:.88rem">
+          Views <b style="color:{INK}">{int(r['views'] or 0):,}</b> &nbsp;·&nbsp;
+          Likes <b style="color:{INK}">{int(r['likes'] or 0):,}</b> &nbsp;·&nbsp;
+          Comments <b style="color:{INK}">{int(r['comments'] or 0):,}</b> &nbsp;·&nbsp;
+          % watched <b style="color:{INK}">{(f'{pct:.0f}%' if pd.notna(pct) else '—')}</b>
+          &nbsp;·&nbsp; <a href="{r['url']}" target="_blank">Open ↗</a></div>
+        </div>""", unsafe_allow_html=True)
+    if st.button("← Back to all videos"):
+        st.session_state["focus_id"] = None
+        st.rerun()
 
 # --------------------------------------------------------- summary metrics ---
-section("Overview")
-total = len(df)
-views = int(df["views"].fillna(0).sum())
-avg_views = int(df["views"].fillna(0).mean()) if total else 0
-likes = int(df["likes"].fillna(0).sum())
-comments = int(df["comments"].fillna(0).sum())
-eng_rate = round(100 * (likes + comments) / views, 2) if views else 0
-aw = df["avg_view_percentage"].dropna().mean() if "avg_view_percentage" in df else None
+section("Overview" if not focus else "This video")
+total = len(view)
+views = int(view["views"].fillna(0).sum())
+avg_views = int(view["views"].fillna(0).mean()) if total else 0
+likes = int(view["likes"].fillna(0).sum())
+comments = int(view["comments"].fillna(0).sum())
+eng = round(100 * (likes + comments) / views, 2) if views else 0
+aw = view["avg_view_percentage"].dropna().mean() if "avg_view_percentage" in view else None
 avg_watched = f"{aw:.0f}%" if aw is not None and pd.notna(aw) else "—"
 
-c1, c2, c3, c4, c5, c6 = st.columns(6)
-c1.metric("Videos", f"{total:,}")
-c2.metric("Total views", f"{views:,}")
-c3.metric("Avg views", f"{avg_views:,}")
-c4.metric("Engagement", f"{eng_rate}%")
-c5.metric("Likes", f"{likes:,}")
-c6.metric("Avg % watched", avg_watched)
+cols = st.columns(6)
+cols[0].metric("Videos", f"{total:,}")
+cols[1].metric("Total views", f"{views:,}")
+cols[2].metric("Avg views", f"{avg_views:,}")
+cols[3].metric("Engagement", f"{eng}%")
+cols[4].metric("Likes", f"{likes:,}")
+cols[5].metric("Avg % watched", avg_watched)
 
 # ------------------------------------------------------------- top + cadence ---
 left, right = st.columns(2)
 with left:
     section("Top videos by views")
-    top = df.sort_values("views", ascending=False, na_position="last").head(10)
-    fig = px.bar(top, x="views", y="short_title", orientation="h",
-                 color_discrete_sequence=[PRIMARY])
-    fig.update_layout(yaxis={"categoryorder": "total ascending", "title": ""})
-    left.plotly_chart(style_fig(fig, 420), use_container_width=True)
+    top = df.sort_values("views", ascending=False, na_position="last").head(8).copy()
+    bar_colors = [ACCENT if v == focus else PRIMARY for v in top["platform_video_id"]]
+    fig = go.Figure(go.Bar(
+        x=top["views"].fillna(0), y=top["short_title"], orientation="h",
+        marker_color=bar_colors, text=top["views"].fillna(0),
+        texttemplate="%{text:,.0f}", textposition="outside", cliponaxis=False,
+        hovertemplate="%{y}<br>%{x:,.0f} views<extra></extra>"))
+    fig.update_layout(yaxis={"categoryorder": "total ascending", "title": ""},
+                      xaxis_title="views", showlegend=False)
+    show(fig, 430)
 
 with right:
     section("Videos posted per month")
@@ -227,40 +234,49 @@ with right:
         cad["m"] = cad["published_at"].dt.tz_localize(None).dt.to_period("M").dt.to_timestamp()
         g = cad.groupby("m").size().reset_index(name="videos").sort_values("m")
         g["label"] = g["m"].dt.strftime("%b %Y")
-        fig = px.bar(g, x="label", y="videos", color_discrete_sequence=[GOLD], text="videos")
+        fig = px.bar(g, x="label", y="videos", color_discrete_sequence=[PRIMARY], text="videos")
         fig.update_xaxes(type="category", title="")
-        right.plotly_chart(style_fig(fig, 420), use_container_width=True)
+        fig.update_yaxes(dtick=1, rangemode="tozero", title="videos")
+        fig.update_layout(showlegend=False)
+        show(fig, 430)
 
 # ----------------------------------------------------------- calendar view ---
-section("Posting calendar", "Days you posted are highlighted. ▶️ YouTube · 📸 Instagram")
+section("Posting calendar", "Days you posted are highlighted.")
 caldf = df.dropna(subset=["published_at"]).copy()
 if not caldf.empty:
     caldf["ym"] = caldf["published_at"].dt.tz_localize(None).dt.to_period("M")
     months = sorted(caldf["ym"].unique(), reverse=True)
     pick = st.selectbox("Month", months, format_func=lambda p: p.strftime("%B %Y"))
-    year, month = pick.year, pick.month
     sub = caldf[caldf["ym"] == pick]
     posts_by_day = {}
     for _, rr in sub.iterrows():
-        d = rr["published_at"].day
-        posts_by_day.setdefault(d, set()).add(rr["platform"])
-
-    cal = calmod.Calendar(firstweekday=6)  # Sunday first
+        posts_by_day.setdefault(rr["published_at"].day, set()).add(rr["platform"])
+    try:
+        now = pd.Timestamp.now(tz="Australia/Melbourne")
+    except Exception:
+        now = pd.Timestamp.utcnow()
+    cal = calmod.Calendar(firstweekday=6)
     head = "".join(f"<th>{w}</th>" for w in ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"])
     body = ""
-    for week in cal.monthdayscalendar(year, month):
+    for week in cal.monthdayscalendar(pick.year, pick.month):
         body += "<tr>"
         for day in week:
             if day == 0:
                 body += '<td class="empty"></td>'
                 continue
             plats = posts_by_day.get(day)
-            cls = "has" if plats else ""
+            cls = ""
+            if plats:
+                cls = "both" if len(plats) > 1 else ("yt" if "youtube" in plats else "ig")
+            if now.year == pick.year and now.month == pick.month and now.day == day:
+                cls += " today"
             icons = "".join(PLATFORM_ICON.get(p, "•") for p in sorted(plats)) if plats else ""
             body += (f'<td class="{cls}"><div class="daynum">{day}</div>'
                      f'<div class="icons">{icons}</div></td>')
         body += "</tr>"
-    st.markdown(f'<table class="cal"><tr>{head}</tr>{body}</table>', unsafe_allow_html=True)
+    st.markdown(f'<table class="cal"><tr>{head}</tr>{body}</table>'
+                f'<div class="leg">▶️ YouTube &nbsp; 📸 Instagram &nbsp; '
+                f'<span style="color:{ACCENT}">▮</span> today</div>', unsafe_allow_html=True)
 
 # --------------------------------------------------------------- retention ---
 ret = df.dropna(subset=["avg_view_percentage"]) if "avg_view_percentage" in df else df.iloc[0:0]
@@ -268,10 +284,10 @@ if not ret.empty:
     section("How much of each video people watch", "Higher = people stay longer. 100% − this ≈ average skip.")
     r2 = ret.sort_values("avg_view_percentage", ascending=False).head(15)
     fig = px.bar(r2, x="avg_view_percentage", y="short_title", orientation="h",
-                 color="avg_view_percentage", color_continuous_scale="Greens",
+                 color="avg_view_percentage", color_continuous_scale=["#EDE9FE", PRIMARY],
                  labels={"avg_view_percentage": "% watched", "short_title": ""})
     fig.update_layout(yaxis={"categoryorder": "total ascending"}, coloraxis_showscale=False)
-    st.plotly_chart(style_fig(fig, 440), use_container_width=True)
+    show(fig, 440)
 
 # -------------------------------------------------------------- demographics ---
 demo = supa.load_demographics()
@@ -282,21 +298,27 @@ if not demo.empty:
     d1, d2, d3 = st.columns(3)
     age = demo[demo["dimension"] == "age"].sort_values("bucket")
     if not age.empty:
-        fig = px.bar(age, x="bucket", y="percentage", color_discrete_sequence=[PRIMARY],
-                     title="Age", labels={"bucket": "", "percentage": "%"})
-        d1.plotly_chart(style_fig(fig, 320), use_container_width=True)
+        with d1:
+            section("Age") if False else st.caption("Age")
+            fig = px.bar(age, x="bucket", y="percentage", color_discrete_sequence=[PRIMARY],
+                         labels={"bucket": "", "percentage": "%"})
+            fig.update_layout(showlegend=False)
+            show(fig, 300)
     gen = demo[demo["dimension"] == "gender"]
     if not gen.empty:
-        fig = px.pie(gen, names="bucket", values="percentage", hole=.55,
-                     color_discrete_sequence=SEQ, title="Gender")
-        d2.plotly_chart(style_fig(fig, 320), use_container_width=True)
+        with d2:
+            st.caption("Gender")
+            fig = px.pie(gen, names="bucket", values="percentage", hole=.55,
+                         color_discrete_sequence=SEQ)
+            show(fig, 300)
     ctry = demo[demo["dimension"] == "country"].sort_values("percentage", ascending=False)
     if not ctry.empty:
-        fig = px.bar(ctry, x="percentage", y="bucket", orientation="h",
-                     color_discrete_sequence=[GOLD], title="Top countries",
-                     labels={"bucket": "", "percentage": "% of views"})
-        fig.update_layout(yaxis={"categoryorder": "total ascending"})
-        d3.plotly_chart(style_fig(fig, 320), use_container_width=True)
+        with d3:
+            st.caption("Top countries")
+            fig = px.bar(ctry, x="percentage", y="bucket", orientation="h",
+                         color_discrete_sequence=[ACCENT], labels={"bucket": "", "percentage": "% of views"})
+            fig.update_layout(yaxis={"categoryorder": "total ascending"}, showlegend=False)
+            show(fig, 300)
 else:
     st.caption("👥 Audience charts appear once videos pass YouTube's minimum-views threshold.")
 
@@ -308,18 +330,29 @@ if not hist.empty:
     if daily["day"].nunique() > 1:
         section("Total view growth over time")
         fig = px.line(daily, x="day", y="views", markers=True, color_discrete_sequence=[PRIMARY])
-        st.plotly_chart(style_fig(fig, 320), use_container_width=True)
+        show(fig, 320)
 
 # ------------------------------------------------------------------- table ---
-section("All videos")
-cols = [c for c in ["platform", "title", "published_at", "views", "likes", "comments",
-                    "avg_view_percentage", "url"] if c in df.columns]
-st.dataframe(
-    df[cols].sort_values("views", ascending=False, na_position="last"),
-    use_container_width=True, hide_index=True,
+section("All videos", "Tip: click a row to focus the whole dashboard on that video.")
+tbl = df.sort_values("views", ascending=False, na_position="last").reset_index(drop=True)
+ids_in_order = tbl["platform_video_id"].tolist()
+disp = [c for c in ["platform", "clean_title", "published_at", "views", "likes",
+                    "comments", "avg_view_percentage", "url"] if c in tbl.columns]
+event = st.dataframe(
+    tbl[disp], use_container_width=True, hide_index=True,
+    on_select="rerun", selection_mode="single-row", key="vtable",
     column_config={
-        "platform": st.column_config.TextColumn("platform"),
+        "clean_title": st.column_config.TextColumn("title"),
         "url": st.column_config.LinkColumn("link", display_text="open"),
         "avg_view_percentage": st.column_config.NumberColumn("% watched", format="%.0f"),
     },
 )
+try:
+    sel_rows = event.selection["rows"]
+except Exception:
+    sel_rows = getattr(getattr(event, "selection", None), "rows", []) or []
+if sel_rows:
+    sel_id = ids_in_order[sel_rows[0]]
+    if sel_id != st.session_state.get("focus_id"):
+        st.session_state["_pending_focus"] = sel_id
+        st.rerun()
