@@ -4,6 +4,7 @@ import calendar as calmod
 import os
 import re
 import urllib.parse
+from contextlib import contextmanager
 
 import pandas as pd
 import plotly.express as px
@@ -92,12 +93,15 @@ st.markdown(
       .bnt-header h1 {{ margin: 0; font-size: 1.95rem; font-weight: 800; color: {NAVY}; letter-spacing:-.3px;}}
       .bnt-header p  {{ margin: 5px 0 0; color: {MUTED}; font-size: .96rem; }}
 
-      /* every bordered section = white card with the SAME green bottom line as the header */
-      div[data-testid="stVerticalBlockBorderWrapper"],
-      div.stVerticalBlockBorderWrapper {{
-        background: #fff; border: 1px solid {GRID} !important;
-        border-bottom: 4px solid {GREEN} !important;
+      /* card depth — the border itself is Streamlit's; the green bottom line
+         is rendered as a real element (.bnt-cardline) so it can't fail to show */
+      div[data-testid="stVerticalBlockBorderWrapper"] {{
         border-radius: 16px; box-shadow: 0 8px 26px -18px rgba(12,35,64,.45);
+      }}
+      /* the green bottom line every card ends with — matches the main header */
+      .bnt-cardline {{
+        height: 5px; background: {GREEN}; border-radius: 0 0 9px 9px;
+        margin: 16px -15px -15px -15px;
       }}
 
       div[data-testid="stMetric"] {{
@@ -182,6 +186,14 @@ def section(title, caption=None):
     st.markdown(f'<div class="bnt-sec">{title}</div>', unsafe_allow_html=True)
     if caption:
         st.markdown(f'<div class="bnt-cap">{caption}</div>', unsafe_allow_html=True)
+
+
+@contextmanager
+def card():
+    """A bordered section card that always ends with the brand green bottom line."""
+    with st.container(border=True):
+        yield
+        st.markdown('<div class="bnt-cardline"></div>', unsafe_allow_html=True)
 
 
 def style_fig(fig, height=320):
@@ -303,7 +315,7 @@ view = df[df["platform_video_id"] == focus] if focus else df
 if focus and not view.empty:
     r = view.iloc[0]
     pct = r["avg_view_percentage"]
-    with st.container(border=True):
+    with card():
         section("Viewing one video")
         st.markdown(
             f"""<div class="bnt-spot">
@@ -321,7 +333,7 @@ if focus and not view.empty:
             st.rerun()
 
 # --------------------------------------------------------- summary metrics ---
-with st.container(border=True):
+with card():
     section("Overview" if not focus else "This video")
     total = len(view)
     views = int(view["views"].fillna(0).sum())
@@ -342,7 +354,7 @@ with st.container(border=True):
 # ------------------------------------------------------------- top + cadence ---
 left, right = st.columns(2)
 with left:
-    with st.container(border=True):
+    with card():
         section("Top videos by views", "Labelled by post date · hover a bar for the caption.")
         top = df.sort_values("views", na_position="first").tail(8).copy()
         top["datelbl"] = top["published_at"].dt.strftime("%d %b")
@@ -369,7 +381,7 @@ with left:
             f'<span style="color:{GREEN}">▮</span> focused</div>', unsafe_allow_html=True)
 
 with right:
-    with st.container(border=True):
+    with card():
         section("Videos posted per month")
         cad = df.dropna(subset=["published_at"]).copy()
         if not cad.empty:
@@ -384,7 +396,7 @@ with right:
             show(fig, 320)
 
 # ----------------------------------------------------------- calendar view ---
-with st.container(border=True):
+with card():
     section("Posting Calendar", "Days you posted are highlighted.")
     caldf = df.dropna(subset=["published_at"]).copy()
     if not caldf.empty:
@@ -427,7 +439,7 @@ with st.container(border=True):
 # --------------------------------------------------------------- retention ---
 ret = df.dropna(subset=["avg_view_percentage"]) if "avg_view_percentage" in df else df.iloc[0:0]
 if not ret.empty:
-    with st.container(border=True):
+    with card():
         section("How much of each video people watch", "Higher = people stay longer. 100% − this ≈ average skip.")
         r2 = ret.sort_values("avg_view_percentage", ascending=False).head(15)
         fig = px.bar(r2, x="avg_view_percentage", y="clean_title", orientation="h",
@@ -473,17 +485,17 @@ for _p in _aud_plats:
     if pdemo is None or pdemo.empty:
         continue
     _aud_shown = True
-    with st.container(border=True):
+    with card():
         section(f'{plogo(_p, 18)} {_p.title()} audience', "Channel-level breakdown of who's watching.")
         render_audience(pdemo)
 if not _aud_shown:
-    with st.container(border=True):
+    with card():
         section("Audience")
         st.caption("👥 Audience charts appear once your accounts pass each platform's threshold "
                    "(YouTube needs enough views; Instagram needs ~100+ followers).")
 
 # ------------------------------------------------------------------- table ---
-with st.container(border=True):
+with card():
     section("All videos", "Tip: click a row to focus the whole dashboard on that video.")
     tbl = df.sort_values("views", ascending=False, na_position="last").reset_index(drop=True)
     ids_in_order = tbl["platform_video_id"].tolist()
