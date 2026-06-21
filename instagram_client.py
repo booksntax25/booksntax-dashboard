@@ -77,9 +77,13 @@ def _reel_views(media_id, token):
 
 
 def fetch_demographics():
-    """Audience age / gender / country for your own account. Returns [] quietly
-    if Instagram withholds it (it needs ~100+ followers before it will report)."""
+    """Audience age / gender / country for your own account, shaped exactly like
+    the YouTube demographics rows the dashboard renders:
+        {"dimension": "age"|"gender"|"country", "bucket": str, "percentage": float}
+    Counts are normalised to a % within each dimension. Returns [] quietly if
+    Instagram withholds it (it needs ~100+ followers before it will report)."""
     ig_user_id, token = _cfg()
+    gmap = {"F": "Female", "M": "Male", "U": "Unknown"}
     rows = []
     for breakdown, dim in (("age", "age"), ("gender", "gender"),
                            ("country", "country")):
@@ -97,12 +101,17 @@ def fetch_demographics():
             breakdowns = data[0].get("total_value", {}).get("breakdowns", [])
             if not breakdowns:
                 continue
-            for item in breakdowns[0].get("results", []):
-                label_parts = item.get("dimension_values", [])
+            results = breakdowns[0].get("results", [])
+            total = sum(r.get("value", 0) for r in results) or 1
+            for item in results:
+                dv = item.get("dimension_values", [])
+                label = dv[0] if dv else "Unknown"
+                if dim == "gender":
+                    label = gmap.get(label, label)
                 rows.append({
                     "dimension": dim,
-                    "label": label_parts[0] if label_parts else "unknown",
-                    "value": item.get("value", 0),
+                    "bucket": label,
+                    "percentage": round(100 * item.get("value", 0) / total, 1),
                 })
         except requests.HTTPError:
             continue

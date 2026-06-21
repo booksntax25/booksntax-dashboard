@@ -3,6 +3,7 @@ import base64
 import calendar as calmod
 import os
 import re
+import urllib.parse
 
 import pandas as pd
 import plotly.express as px
@@ -21,6 +22,34 @@ MUTED = "#5B6B7B"
 GRID = "#E6EBF1"
 SEQ = ["#1F4E79", "#1E8043", "#3D7AB5", "#52A66B", "#0C2340", "#9CB3C9"]
 PLATFORM_ICON = {"youtube": "▶️", "instagram": "📸"}
+YT_COLOR = "#FF0000"
+IG_COLOR = "#C13584"
+
+# Stylized, brand-coloured platform marks (clean functional icons, not the
+# trademarked logo files — keeps the dashboard shareable without IP issues).
+YT_SVG = ('<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">'
+          '<rect x="1" y="4" width="22" height="16" rx="5" fill="#FF0000"/>'
+          '<path d="M10 8.5 L16.5 12 L10 15.5 Z" fill="#fff"/></svg>')
+IG_SVG = ('<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><defs>'
+          '<linearGradient id="igg" x1="0" y1="1" x2="1" y2="0">'
+          '<stop offset="0" stop-color="#FEDA75"/><stop offset=".5" stop-color="#D62976"/>'
+          '<stop offset="1" stop-color="#962FBF"/></linearGradient></defs>'
+          '<rect x="1" y="1" width="22" height="22" rx="7" fill="url(#igg)"/>'
+          '<circle cx="12" cy="12" r="5" fill="none" stroke="#fff" stroke-width="2"/>'
+          '<circle cx="17.6" cy="6.4" r="1.4" fill="#fff"/></svg>')
+
+
+def _uri(svg):
+    return "data:image/svg+xml," + urllib.parse.quote(svg)
+
+
+YT_URI, IG_URI = _uri(YT_SVG), _uri(IG_SVG)
+
+
+def plogo(platform, size=16):
+    svg = YT_SVG if platform == "youtube" else IG_SVG
+    return svg.replace(
+        "<svg ", f'<svg width="{size}" height="{size}" style="vertical-align:middle;margin-right:3px" ', 1)
 
 st.set_page_config(page_title="BooksNTax · Social Dashboard", page_icon="📊", layout="wide")
 
@@ -59,9 +88,10 @@ st.markdown(
       .bnt-header h1 {{ margin: 0; font-size: 1.95rem; font-weight: 800; color: {NAVY}; letter-spacing:-.3px;}}
       .bnt-header p  {{ margin: 5px 0 0; color: {MUTED}; font-size: .96rem; }}
 
-      /* every section is a white card with a green accent + shadow (header concept) */
+      /* every section is a white card with a green accent + shadow */
       div[data-testid="stVerticalBlockBorderWrapper"] {{
-        background: #fff; border: 1px solid {GRID} !important; border-bottom: 3px solid {GREEN} !important;
+        background: #fff; border: 1px solid {GRID} !important;
+        border-left: 4px solid {GREEN} !important; border-bottom: 3px solid {GREEN} !important;
         border-radius: 16px; box-shadow: 0 8px 26px -18px rgba(12,35,64,.45);
       }}
 
@@ -75,28 +105,57 @@ st.markdown(
       }}
       div[data-testid="stMetricValue"] {{ color: {NAVY}; font-weight: 700; }}
 
-      .bnt-sec {{ font-size: 1.06rem; font-weight: 700; color: {NAVY};
-        margin: 2px 0 12px; padding-left: 11px; border-left: 4px solid {GREEN}; }}
-      .bnt-cap {{ color: {MUTED}; font-size: .82rem; margin: -8px 0 8px; }}
+      /* section header band — green marker + underline, like the main header */
+      .bnt-sec {{ font-size: 1.08rem; font-weight: 800; color: {NAVY};
+        margin: -2px 0 14px; padding: 0 0 9px; display:flex; align-items:center; gap:9px;
+        border-bottom: 2px solid {GRID}; letter-spacing:-.2px; }}
+      .bnt-sec::before {{ content:""; width:7px; height:20px; border-radius:3px;
+        background:{GREEN}; display:inline-block; flex:0 0 auto; }}
+      .bnt-cap {{ color: {MUTED}; font-size: .82rem; margin: -8px 0 10px; }}
 
       .bnt-spot {{ background: #F4FAF6; border: 1px solid #CDE8D6; border-left: 5px solid {GREEN};
         border-radius: 12px; padding: 16px 20px; }}
 
+      /* platform toggle (top of page) */
+      .bnt-toggle-label {{ font-size:.72rem; text-transform:uppercase; letter-spacing:.5px;
+        color:{MUTED}; font-weight:700; margin: 0 0 6px 2px; }}
+      div[role="radiogroup"] {{ gap:10px; }}
+      div[role="radiogroup"] > label {{
+        position:relative; border:1.5px solid {GRID}; border-radius:12px; background:#fff; cursor:pointer;
+        padding:9px 16px; font-weight:700; color:{NAVY}; transition:all .15s;
+        box-shadow:0 3px 12px -10px rgba(12,35,64,.4);
+      }}
+      div[role="radiogroup"] > label:hover {{ border-color:{GREEN}; }}
+      div[role="radiogroup"] > label > div:first-child {{ display:none; }}
+      div[role="radiogroup"] > label:nth-of-type(2),
+      div[role="radiogroup"] > label:nth-of-type(3) {{ padding-left:42px; }}
+      div[role="radiogroup"] > label:nth-of-type(2)::before,
+      div[role="radiogroup"] > label:nth-of-type(3)::before {{
+        content:""; position:absolute; left:14px; top:50%; transform:translateY(-50%);
+        width:21px; height:21px; background-size:contain; background-repeat:no-repeat; background-position:center;
+      }}
+      div[role="radiogroup"] > label:nth-of-type(2)::before {{ background-image:url("{YT_URI}"); }}
+      div[role="radiogroup"] > label:nth-of-type(3)::before {{ background-image:url("{IG_URI}"); }}
+      div[role="radiogroup"] > label:has(input:checked) {{
+        border-color:{GREEN}; background:#F4FAF6; box-shadow:0 5px 16px -10px rgba(12,35,64,.5); }}
+
       /* calendar */
-      .calwrap {{ max-width: 760px; margin: 4px auto 0; }}
-      .cal {{ width: 100%; border-collapse: separate; border-spacing: 6px; }}
-      .cal th {{ color: {MUTED}; font-size: .68rem; font-weight: 700; text-transform: uppercase; padding-bottom:2px;}}
-      .cal td {{ height: 52px; border-radius: 10px; text-align: center; vertical-align: middle;
-        background: #FFFFFF; border: 1px solid {GRID}; padding: 4px; }}
+      .calwrap {{ max-width: 780px; margin: 4px auto 0; }}
+      .cal {{ width: 100%; border-collapse: separate; border-spacing: 7px; }}
+      .cal th {{ color: {MUTED}; font-size: .7rem; font-weight: 800; text-transform: uppercase; padding-bottom:3px;}}
+      .cal td {{ height: 60px; border-radius: 11px; text-align: center; vertical-align: middle;
+        background: #FFFFFF; border: 2px solid #C7D2DE; padding: 4px; }}
       .cal td.alt {{ background: #EEF2F7; }}
       .cal td.empty {{ background: transparent; border: none; }}
-      .cal td.yt   {{ background: #FDEDEF; border: 1px solid #E2557A; }}
-      .cal td.ig   {{ background: #EEE8FD; border: 1px solid #9B7BE6; }}
-      .cal td.both {{ background: linear-gradient(135deg,#FDEDEF,#EEE8FD); border: 1px solid #B57BD6; }}
-      .cal td.today {{ box-shadow: 0 0 0 2px {GREEN}; }}
-      .cal .daynum {{ font-size: .95rem; color: {NAVY}; font-weight: 700; }}
-      .cal .icons {{ font-size: 1rem; margin-top: 2px; }}
-      .leg {{ color:{MUTED}; font-size:.8rem; margin-top:10px; text-align:center; }}
+      .cal td.yt   {{ background: #FFF1F3; border-color: #E2557A; }}
+      .cal td.ig   {{ background: #F3EDFD; border-color: #9B7BE6; }}
+      .cal td.both {{ background: linear-gradient(135deg,#FFF1F3,#F3EDFD); border-color: #B57BD6; }}
+      .cal td.today {{ box-shadow: 0 0 0 3px {GREEN}; border-color: {GREEN}; }}
+      .cal .daynum {{ font-size: 1.28rem; color: {NAVY}; font-weight: 800; line-height:1; }}
+      .cal .icons {{ margin-top: 4px; display:flex; gap:3px; justify-content:center; align-items:center; }}
+      .cal .icons svg {{ display:block; }}
+      .leg {{ color:{MUTED}; font-size:.82rem; margin-top:12px; text-align:center; }}
+      .leg svg {{ vertical-align:middle; }}
     </style>
     """,
     unsafe_allow_html=True,
@@ -161,6 +220,7 @@ with st.sidebar:
                     import instagram_client
                     reels = instagram_client.fetch_reels()
                     supa.save_videos(reels)
+                    supa.save_demographics("instagram", instagram_client.fetch_demographics())
                 msgs.append(f"📸 Instagram: {len(reels)} reels")
             except Exception as e:
                 errs.append(f"Instagram fetch failed: {e}")
@@ -196,12 +256,19 @@ df["clean_title"] = df["title"].map(clean_title)
 if "_pending_focus" in st.session_state:
     st.session_state["focus_id"] = st.session_state.pop("_pending_focus")
 
+# ---- platform toggle (top of the page, above Overview) ----
+all_plats = sorted(df["platform"].dropna().unique())
+plat_view = "both"
+if len(all_plats) > 1:
+    st.markdown('<div class="bnt-toggle-label">Platform</div>', unsafe_allow_html=True)
+    order = [p for p in ["youtube", "instagram"] if p in all_plats]
+    pick = st.radio("platform", ["Both"] + [p.title() for p in order], horizontal=True,
+                    label_visibility="collapsed", key="plat_choice")
+    plat_view = pick.lower()
+    if plat_view != "both":
+        df = df[df["platform"] == plat_view]
+
 with st.sidebar:
-    platforms = sorted(df["platform"].dropna().unique())
-    if len(platforms) > 1:
-        chosen = st.multiselect("Platform", platforms, default=platforms,
-                                format_func=lambda p: f"{PLATFORM_ICON.get(p,'')} {p.title()}")
-        df = df[df["platform"].isin(chosen)]
     if st.toggle("Shorts only (≤ 3 min)", value=False):
         df = df[df["duration_seconds"].fillna(9999) <= 180]
     ids = list(df["platform_video_id"])
@@ -209,7 +276,6 @@ with st.sidebar:
               for r in df.itertuples()}
     if st.session_state.get("focus_id") not in ids:
         st.session_state["focus_id"] = None
-    st.divider()
     st.selectbox("🔍 Focus on a video", [None] + ids, key="focus_id",
                  format_func=lambda v: "All videos" if v is None else titles.get(v, v))
 
@@ -264,23 +330,30 @@ with st.container(border=True):
 left, right = st.columns(2)
 with left:
     with st.container(border=True):
-        section("Top videos by views")
-        top = df.sort_values("views", ascending=False, na_position="last").head(8).copy()
-        names = top["clean_title"].apply(lambda s: s[:26] + ("…" if len(s) > 26 else ""))
-        colors = [GREEN if v == focus else BAR for v in top["platform_video_id"]]
+        section("Top videos by views", "Labelled by post date · hover a bar for the caption.")
+        top = df.sort_values("views", na_position="first").tail(8).copy()
+        top["datelbl"] = top["published_at"].dt.strftime("%d %b")
+        yv = list(range(len(top)))
+        colors = [GREEN if r.platform_video_id == focus
+                  else (IG_COLOR if r.platform == "instagram" else BAR)
+                  for r in top.itertuples()]
         fig = go.Figure(go.Bar(
-            x=top["views"].fillna(0), y=top["clean_title"], orientation="h",
-            marker_color=colors, width=0.55, text=names, textposition="inside",
-            insidetextanchor="start", textfont=dict(color="white", size=12),
-            hovertemplate="%{customdata}<br>%{x:,.0f} views<extra></extra>",
-            customdata=top["clean_title"]))
-        for _, rr in top.iterrows():
-            fig.add_annotation(x=rr["views"] or 0, y=rr["clean_title"], xanchor="left", xshift=6,
-                               text=f"{int(rr['views'] or 0):,}", showarrow=False,
-                               font=dict(color=INK, size=12))
-        fig.update_yaxes(showticklabels=False, categoryorder="total ascending")
-        fig.update_layout(xaxis_title="views", showlegend=False, bargap=0.35)
-        show(fig, 320)
+            x=top["views"].fillna(0), y=yv, orientation="h", marker_color=colors, width=0.6,
+            hovertemplate="%{customdata[0]}<br>%{customdata[1]} · %{x:,.0f} views<extra></extra>",
+            customdata=top[["clean_title", "datelbl"]].values))
+        for i, rr in enumerate(top.itertuples()):
+            v = int(rr.views) if pd.notna(rr.views) else 0
+            fig.add_annotation(x=v, y=i, xanchor="left", xshift=6, text=f"{v:,}",
+                               showarrow=False, font=dict(color=INK, size=12, family="Inter"))
+        fig.update_yaxes(tickmode="array", tickvals=yv, ticktext=list(top["datelbl"]),
+                         tickfont=dict(size=12.5, color=MUTED))
+        fig.update_layout(xaxis_title="views", showlegend=False, bargap=0.3,
+                          margin=dict(l=10, r=64, t=8, b=10))
+        show(fig, 340)
+        st.markdown(
+            f'<div class="bnt-cap"><span style="color:{BAR}">▮</span> YouTube &nbsp; '
+            f'<span style="color:{IG_COLOR}">▮</span> Instagram &nbsp; '
+            f'<span style="color:{GREEN}">▮</span> focused</div>', unsafe_allow_html=True)
 
 with right:
     with st.container(border=True):
@@ -330,13 +403,14 @@ with st.container(border=True):
                     cls.append("both" if len(plats) > 1 else ("yt" if "youtube" in plats else "ig"))
                 if now.year == pick.year and now.month == pick.month and now.day == day:
                     cls.append("today")
-                icons = "".join(PLATFORM_ICON.get(p, "•") for p in sorted(plats)) if plats else ""
+                icons = "".join(plogo(p, 15) for p in sorted(plats)) if plats else ""
                 body += (f'<td class="{" ".join(cls)}"><div class="daynum">{day}</div>'
                          f'<div class="icons">{icons}</div></td>')
             body += "</tr>"
         st.markdown(
             f'<div class="calwrap"><table class="cal"><tr>{head}</tr>{body}</table>'
-            f'<div class="leg">▶️ YouTube &nbsp; 📸 Instagram &nbsp; '
+            f'<div class="leg">{plogo("youtube",15)} YouTube &nbsp; '
+            f'{plogo("instagram",15)} Instagram &nbsp; '
             f'<span style="color:{GREEN}">▮</span> today</div></div>', unsafe_allow_html=True)
 
 # --------------------------------------------------------------- retention ---
@@ -352,37 +426,50 @@ if not ret.empty:
         show(fig, 420)
 
 # -------------------------------------------------------------- demographics ---
-demo = supa.load_demographics()
-if not demo.empty:
-    demo = demo[demo["platform"] == "youtube"]
-with st.container(border=True):
-    section("Audience", "Shown for the whole channel — YouTube doesn't break audience down per video at low view counts.")
-    if not demo.empty:
-        d1, d2, d3 = st.columns(3)
-        age = demo[demo["dimension"] == "age"].sort_values("bucket")
-        if not age.empty:
-            with d1:
-                st.markdown("**Age**")
-                fig = px.bar(age, x="bucket", y="percentage", color_discrete_sequence=[BAR],
-                             labels={"bucket": "", "percentage": "%"})
-                fig.update_layout(showlegend=False)
-                show(fig, 290)
-        gen = demo[demo["dimension"] == "gender"]
-        if not gen.empty:
-            with d2:
-                st.markdown("**Gender**")
-                fig = px.pie(gen, names="bucket", values="percentage", hole=.55, color_discrete_sequence=SEQ)
-                show(fig, 290)
-        ctry = demo[demo["dimension"] == "country"].sort_values("percentage", ascending=False)
-        if not ctry.empty:
-            with d3:
-                st.markdown("**Top countries**")
-                fig = px.bar(ctry, x="percentage", y="bucket", orientation="h",
-                             color_discrete_sequence=[BLUE], labels={"bucket": "", "percentage": "% of views"})
-                fig.update_layout(yaxis={"categoryorder": "total ascending"}, showlegend=False)
-                show(fig, 290)
-    else:
-        st.caption("👥 Audience charts appear once videos pass YouTube's minimum-views threshold.")
+demo_all = supa.load_demographics()
+
+
+def render_audience(pdemo):
+    d1, d2, d3 = st.columns(3)
+    age = pdemo[pdemo["dimension"] == "age"].sort_values("bucket")
+    if not age.empty:
+        with d1:
+            st.markdown("**Age**")
+            fig = px.bar(age, x="bucket", y="percentage", color_discrete_sequence=[BAR],
+                         labels={"bucket": "", "percentage": "%"})
+            fig.update_layout(showlegend=False)
+            show(fig, 290)
+    gen = pdemo[pdemo["dimension"] == "gender"]
+    if not gen.empty:
+        with d2:
+            st.markdown("**Gender**")
+            fig = px.pie(gen, names="bucket", values="percentage", hole=.55, color_discrete_sequence=SEQ)
+            show(fig, 290)
+    ctry = pdemo[pdemo["dimension"] == "country"].sort_values("percentage", ascending=False).head(8)
+    if not ctry.empty:
+        with d3:
+            st.markdown("**Top countries**")
+            fig = px.bar(ctry, x="percentage", y="bucket", orientation="h",
+                         color_discrete_sequence=[BLUE], labels={"bucket": "", "percentage": "%"})
+            fig.update_layout(yaxis={"categoryorder": "total ascending"}, showlegend=False)
+            show(fig, 290)
+
+
+_aud_plats = ["youtube", "instagram"] if plat_view == "both" else [plat_view]
+_aud_shown = False
+for _p in _aud_plats:
+    pdemo = demo_all[demo_all["platform"] == _p] if not demo_all.empty else demo_all
+    if pdemo is None or pdemo.empty:
+        continue
+    _aud_shown = True
+    with st.container(border=True):
+        section(f'{plogo(_p, 18)} {_p.title()} audience', "Channel-level breakdown of who's watching.")
+        render_audience(pdemo)
+if not _aud_shown:
+    with st.container(border=True):
+        section("Audience")
+        st.caption("👥 Audience charts appear once your accounts pass each platform's threshold "
+                   "(YouTube needs enough views; Instagram needs ~100+ followers).")
 
 # ------------------------------------------------------------ view growth ---
 hist = supa.load_history()
