@@ -75,8 +75,12 @@ st.markdown(
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
       html, body, [class*="css"], .stApp {{ font-family: 'Inter', sans-serif; }}
+      html, body {{ overflow-x: hidden; }}
       .stApp {{ background: #F4F6F9; }}
-      .block-container {{ padding-top: 1.2rem; max-width: 1320px; }}
+      .block-container {{ padding-top: 1.2rem; max-width: 1320px; overflow-x: hidden; }}
+      /* let the page scroll vertically over charts instead of the chart zooming */
+      [data-testid="stPlotlyChart"], .js-plotly-plot, .plot-container,
+      .js-plotly-plot .draglayer {{ touch-action: pan-y !important; }}
 
       .bnt-header {{
         background: #fff; padding: 18px 28px; border-radius: 18px; margin-bottom: 18px;
@@ -91,7 +95,7 @@ st.markdown(
       /* every section is a white card with a green accent + shadow */
       div[data-testid="stVerticalBlockBorderWrapper"] {{
         background: #fff; border: 1px solid {GRID} !important;
-        border-left: 4px solid {GREEN} !important; border-bottom: 3px solid {GREEN} !important;
+        border-left: 5px solid {GREEN} !important; border-bottom: 3px solid {GREEN} !important;
         border-radius: 16px; box-shadow: 0 8px 26px -18px rgba(12,35,64,.45);
       }}
 
@@ -145,13 +149,15 @@ st.markdown(
       .cal th {{ color: {MUTED}; font-size: .7rem; font-weight: 800; text-transform: uppercase; padding-bottom:3px;}}
       .cal td {{ height: 60px; border-radius: 11px; text-align: center; vertical-align: middle;
         background: #FFFFFF; border: 2px solid #C7D2DE; padding: 4px; }}
-      .cal td.alt {{ background: #EEF2F7; }}
+      .cal td.cba {{ background: #EAF1F8; }}   /* light blue */
+      .cal td.cbb {{ background: #EDF6F0; }}   /* light green */
       .cal td.empty {{ background: transparent; border: none; }}
       .cal td.yt   {{ background: #FFF1F3; border-color: #E2557A; }}
       .cal td.ig   {{ background: #F3EDFD; border-color: #9B7BE6; }}
       .cal td.both {{ background: linear-gradient(135deg,#FFF1F3,#F3EDFD); border-color: #B57BD6; }}
       .cal td.today {{ box-shadow: 0 0 0 3px {GREEN}; border-color: {GREEN}; }}
-      .cal .daynum {{ font-size: 1.28rem; color: {NAVY}; font-weight: 800; line-height:1; }}
+      .cal .daynum {{ font-size: 1.1rem; color: {NAVY}; font-weight: 600; line-height:1;
+        font-variant-numeric: tabular-nums; letter-spacing: .3px; }}
       .cal .icons {{ margin-top: 4px; display:flex; gap:3px; justify-content:center; align-items:center; }}
       .cal .icons svg {{ display:block; }}
       .leg {{ color:{MUTED}; font-size:.82rem; margin-top:12px; text-align:center; }}
@@ -187,7 +193,13 @@ def style_fig(fig, height=320):
 
 
 def show(fig, h=320):
-    st.plotly_chart(style_fig(fig, h), use_container_width=True, config={"displayModeBar": False})
+    # dragmode=False + the config below stop Plotly from hijacking touch gestures
+    # on mobile (the "zooms in and in" problem) while keeping hover on desktop.
+    fig.update_layout(dragmode=False)
+    st.plotly_chart(
+        style_fig(fig, h), use_container_width=True,
+        config={"displayModeBar": False, "scrollZoom": False, "doubleClick": False,
+                "showAxisDragHandles": False, "showTips": False, "staticPlot": False})
 
 
 def clean_title(t):
@@ -389,15 +401,13 @@ with st.container(border=True):
         cal = calmod.Calendar(firstweekday=6)
         head = "".join(f"<th>{w}</th>" for w in ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"])
         body = ""
-        for week in cal.monthdayscalendar(pick.year, pick.month):
+        for wk_i, week in enumerate(cal.monthdayscalendar(pick.year, pick.month)):
             body += "<tr>"
             for col, day in enumerate(week):
                 if day == 0:
                     body += '<td class="empty"></td>'
                     continue
-                cls = []
-                if col in (0, 6):
-                    cls.append("alt")
+                cls = ["cba" if (wk_i + col) % 2 == 0 else "cbb"]
                 plats = posts_by_day.get(day)
                 if plats:
                     cls.append("both" if len(plats) > 1 else ("yt" if "youtube" in plats else "ig"))
@@ -477,9 +487,14 @@ if not hist.empty:
     hist["captured_at"] = pd.to_datetime(hist["captured_at"], errors="coerce", utc=True)
     daily = hist.assign(day=hist["captured_at"].dt.date).groupby("day")["views"].sum().reset_index()
     if daily["day"].nunique() > 1:
+        daily["day"] = pd.to_datetime(daily["day"])
         with st.container(border=True):
-            section("Total view growth over time")
+            section("Total views over time",
+                    "Your combined views across all videos, captured each time you fetch — "
+                    "the line climbing means your content is still gaining views.")
             fig = px.line(daily, x="day", y="views", markers=True, color_discrete_sequence=[GREEN])
+            fig.update_xaxes(dtick="D1", tickformat="%d %b", title="")
+            fig.update_yaxes(title="total views", rangemode="tozero")
             show(fig, 300)
 
 # ------------------------------------------------------------------- table ---
