@@ -92,10 +92,11 @@ st.markdown(
       .bnt-header h1 {{ margin: 0; font-size: 1.95rem; font-weight: 800; color: {NAVY}; letter-spacing:-.3px;}}
       .bnt-header p  {{ margin: 5px 0 0; color: {MUTED}; font-size: .96rem; }}
 
-      /* every section is a white card with a green accent + shadow */
-      div[data-testid="stVerticalBlockBorderWrapper"] {{
+      /* every bordered section = white card with the SAME green bottom line as the header */
+      div[data-testid="stVerticalBlockBorderWrapper"],
+      div.stVerticalBlockBorderWrapper {{
         background: #fff; border: 1px solid {GRID} !important;
-        border-left: 5px solid {GREEN} !important; border-bottom: 3px solid {GREEN} !important;
+        border-bottom: 4px solid {GREEN} !important;
         border-radius: 16px; box-shadow: 0 8px 26px -18px rgba(12,35,64,.45);
       }}
 
@@ -384,7 +385,7 @@ with right:
 
 # ----------------------------------------------------------- calendar view ---
 with st.container(border=True):
-    section("Posting calendar", "Days you posted are highlighted.")
+    section("Posting Calendar", "Days you posted are highlighted.")
     caldf = df.dropna(subset=["published_at"]).copy()
     if not caldf.empty:
         caldf["ym"] = caldf["published_at"].dt.tz_localize(None).dt.to_period("M")
@@ -480,22 +481,6 @@ if not _aud_shown:
         section("Audience")
         st.caption("👥 Audience charts appear once your accounts pass each platform's threshold "
                    "(YouTube needs enough views; Instagram needs ~100+ followers).")
-
-# ------------------------------------------------------------ view growth ---
-hist = supa.load_history()
-if not hist.empty:
-    hist["captured_at"] = pd.to_datetime(hist["captured_at"], errors="coerce", utc=True)
-    daily = hist.assign(day=hist["captured_at"].dt.date).groupby("day")["views"].sum().reset_index()
-    if daily["day"].nunique() > 1:
-        daily["day"] = pd.to_datetime(daily["day"])
-        with st.container(border=True):
-            section("Total views over time",
-                    "Your combined views across all videos, captured each time you fetch — "
-                    "the line climbing means your content is still gaining views.")
-            fig = px.line(daily, x="day", y="views", markers=True, color_discrete_sequence=[GREEN])
-            fig.update_xaxes(dtick="D1", tickformat="%d %b", title="")
-            fig.update_yaxes(title="total views", rangemode="tozero")
-            show(fig, 300)
 
 # ------------------------------------------------------------------- table ---
 with st.container(border=True):
