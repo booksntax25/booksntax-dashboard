@@ -141,6 +141,8 @@ def clean_title(t):
 with st.sidebar:
     st.subheader("Controls")
     if st.button("🔄 Fetch latest data", use_container_width=True):
+        msgs, errs = [], []
+        # ---- YouTube ----
         try:
             with st.spinner("Pulling from YouTube…"):
                 from youtube_client import fetch_youtube
@@ -149,10 +151,25 @@ with st.sidebar:
                     yt["client_id"], yt["client_secret"], yt["refresh_token"])
                 supa.save_videos(videos)
                 supa.save_demographics("youtube", demo)
-            st.success(f"{channel}: {len(videos)} videos updated.")
-            st.rerun()
+            msgs.append(f"▶️ {channel}: {len(videos)} videos")
         except Exception as e:
-            st.error(f"Fetch failed: {e}")
+            errs.append(f"YouTube fetch failed: {e}")
+        # ---- Instagram (only if secrets are set; independent of YouTube) ----
+        if "instagram" in st.secrets:
+            try:
+                with st.spinner("Pulling from Instagram…"):
+                    import instagram_client
+                    reels = instagram_client.fetch_reels()
+                    supa.save_videos(reels)
+                msgs.append(f"📸 Instagram: {len(reels)} reels")
+            except Exception as e:
+                errs.append(f"Instagram fetch failed: {e}")
+        if msgs:
+            st.success(" · ".join(msgs))
+        for er in errs:
+            st.error(er)
+        if msgs:
+            st.rerun()
     st.divider()
 
 # --------------------------------------------------------------------- data ---
