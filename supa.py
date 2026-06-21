@@ -1,4 +1,4 @@
-"""Supabase access layer: reads/writes for videos, history, and demographics.
+"""Supabase read/write helpers for the BooksNTax Social Dashboard.
 
 Credentials come from Streamlit secrets (set in the Streamlit Cloud dashboard,
 or in .streamlit/secrets.toml when running locally).
@@ -73,13 +73,25 @@ def load_history():
 
 
 def load_demographics():
-    """Return only the most recent demographics snapshot per platform/dimension."""
+    """Return only the most recent demographics snapshot per platform/dimension.
+
+    Uses transform('max') so the 'latest' value stays row-aligned with the
+    full frame — a plain groupby().max() returns a shorter Series and pandas
+    raises 'Can only compare identically-labeled Series objects'.
+    """
     df = _df("channel_demographics")
     if df.empty:
         return df
+
     df["captured_at"] = pd.to_datetime(df["captured_at"], errors="coerce", utc=True)
-    latest = (
-        df.sort_values("captured_at")
-        .groupby(["platform", "dimension"])["captured_at"].transform("max")
-    )
-    return df[df["captured_at"] == latest]
+    df = df.dropna(subset=["captured_at"])
+    if df.empty:
+        return df
+
+    keys = [c for c in ["platform", "dimension"] if c in df.columns]
+    if keys:
+        latest = df.groupby(keys)["captured_at"].transform("max")
+    else:
+        latest = df["captured_at"].max()
+
+    return df[df["captured_at"].eq(latest)].reset_index(drop=True)
