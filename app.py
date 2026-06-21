@@ -93,15 +93,12 @@ st.markdown(
       .bnt-header h1 {{ margin: 0; font-size: 1.95rem; font-weight: 800; color: {NAVY}; letter-spacing:-.3px;}}
       .bnt-header p  {{ margin: 5px 0 0; color: {MUTED}; font-size: .96rem; }}
 
-      /* card depth — the border itself is Streamlit's; the green bottom line
-         is rendered as a real element (.bnt-cardline) so it can't fail to show */
-      div[data-testid="stVerticalBlockBorderWrapper"] {{
-        border-radius: 16px; box-shadow: 0 8px 26px -18px rgba(12,35,64,.45);
-      }}
-      /* the green bottom line every card ends with — matches the main header */
-      .bnt-cardline {{
-        height: 5px; background: {GREEN}; border-radius: 0 0 9px 9px;
-        margin: 16px -15px -15px -15px;
+      /* every section card carries the SAME green bottom border as the main header.
+         Streamlit attaches the st-key-bntcard* class to the actual bordered element,
+         so we recolour its real bottom border — no overlaid bar, hugs the corners. */
+      [class*="st-key-bntcard"] {{
+        border-bottom: 3px solid {GREEN} !important;
+        box-shadow: 0 8px 26px -18px rgba(12,35,64,.45);
       }}
 
       div[data-testid="stMetric"] {{
@@ -188,12 +185,25 @@ def section(title, caption=None):
         st.markdown(f'<div class="bnt-cap">{caption}</div>', unsafe_allow_html=True)
 
 
+_card_seq = 0
+
+
 @contextmanager
 def card():
-    """A bordered section card that always ends with the brand green bottom line."""
-    with st.container(border=True):
+    """A bordered section card whose real bottom border matches the brand header line.
+
+    Each card gets a unique 'bntcard{n}' key so Streamlit tags the bordered element
+    with class 'st-key-bntcard{n}', which the stylesheet recolours. Falls back
+    gracefully if the running Streamlit version doesn't accept a container key.
+    """
+    global _card_seq
+    _card_seq += 1
+    try:
+        ctx = st.container(border=True, key=f"bntcard{_card_seq}")
+    except TypeError:
+        ctx = st.container(border=True)
+    with ctx:
         yield
-        st.markdown('<div class="bnt-cardline"></div>', unsafe_allow_html=True)
 
 
 def style_fig(fig, height=320):
